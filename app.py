@@ -1,140 +1,172 @@
 import streamlit as st
 import networkx as nx
 
-# --- CONFIGURATION ---
-st.set_page_config(page_title="Graduation Optimizer", page_icon="🎓")
+# --- CONFIGURATION & STYLE ---
+st.set_page_config(page_title="INE Course Map", page_icon="🧘", layout="wide")
 
-# --- PART 1: THE DATA (The "IE" Input) ---
-# This dictionary represents the "Precedence Constraints" (Prerequisites).
-# You can edit this list to match your actual Industrial Engineering curriculum.
+# 1. THE "CHILL" STYLING (CSS)
+# We inject custom CSS to change the font and add the animated background.
+st.markdown("""
+<style>
+    /* Import a chill Google Font */
+    @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600&display=swap');
+
+    /* Apply the font to the whole app */
+    html, body, [class*="css"] {
+        font-family: 'Quicksand', sans-serif;
+    }
+
+    /* Animated Background Gradient */
+    .stApp {
+        background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+        background-size: 400% 400%;
+        animation: gradient 15s ease infinite;
+    }
+
+    @keyframes gradient {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+
+    /* Make the content boxes semi-transparent white for readability */
+    .stMetric, .stMarkdown, .stInfo, .stSuccess, .stError, .stWarning {
+        background-color: rgba(255, 255, 255, 0.85);
+        padding: 15px;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    /* Style the sidebar to be glass-morphism */
+    section[data-testid="stSidebar"] {
+        background-color: rgba(255, 255, 255, 0.9);
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# --- PART 1: THE DATA (Extracted from your PDF) ---
+# I have mapped the prerequisites based on standard flows and the PDF arrows.
 curriculum = {
-    "Calculus 1": [],
-    "Calculus 2": ["Calculus 1"],
-    "Physics 1": ["Calculus 1"],
-    "Differential Equations": ["Calculus 2"],
-    "Linear Algebra": ["Calculus 2"],
-    "Circuits": ["Physics 1", "Differential Equations"],
-    "Industrial Stats": ["Calculus 2"],
-    "Quality Control": ["Industrial Stats"],
-    "Operations Research": ["Linear Algebra", "Industrial Stats"],
-    "Simulation": ["Operations Research", "Computer Programming"],
-    "Computer Programming": [], 
-    "Senior Design Project": ["Simulation", "Quality Control", "Circuits"]
+    # --- Year 1 ---
+    "NGN 110 - Intro to Engineering": [],
+    "CHM 101 - Chemistry": [],
+    "MTH 103 - Calculus I": [],
+    "PHY 101 - Physics I": ["MTH 103 - Calculus I"],
+    "WRI 101 - Academic Writing I": [],
+    
+    "CMP 120 - Programming": [],
+    "MTH 104 - Calculus II": ["MTH 103 - Calculus I"],
+    "PHY 102 - Physics II": ["PHY 101 - Physics I"],
+    "WRI 102 - Academic Writing II": ["WRI 101 - Academic Writing I"],
+
+    # --- Year 2 ---
+    "MTH 205 - Calculus III": ["MTH 104 - Calculus II"],
+    "MTH 225 - Diff Eq & Linear Alg": ["MTH 104 - Calculus II"],
+    "NGN 112 - AI & Data Science": ["CMP 120 - Programming"],
+    "MCE 250 - Materials Science": ["CHM 101 - Chemistry"],
+    
+    "NGN 211 - Eng Probability & Stats": ["MTH 104 - Calculus II"],
+    "INE 222 - Operations Research I": ["MTH 225 - Diff Eq & Linear Alg"],
+    "INE 202 - Fund of Ind Eng": ["NGN 110 - Intro to Engineering"],
+
+    # --- Year 3 ---
+    "INE 322 - Operations Research II": ["INE 222 - Operations Research I"],
+    "INE 323 - Stochastic Processes": ["NGN 211 - Eng Probability & Stats"],
+    "INE 351 - Quality Engineering": ["NGN 211 - Eng Probability & Stats"],
+    "INE 310 - Data Mgmt for IE": ["CMP 120 - Programming"],
+    
+    "INE 331 - Analysis of Prod Systems": ["INE 222 - Operations Research I"],
+    "INE 332 - Supply Chain Analysis": ["INE 331 - Analysis of Prod Systems"],
+    "INE 302 - Mfg Processes": ["MCE 250 - Materials Science"],
+
+    # --- Year 4 ---
+    "INE 418 - Decision Science": ["INE 222 - Operations Research I"],
+    "INE 439 - Fundamentals of Mfg": ["INE 302 - Mfg Processes"],
+    "INE 465 - Service Systems": ["INE 323 - Stochastic Processes"],
+    "INE 490 - Senior Design I": ["INE 331 - Analysis of Prod Systems", "INE 351 - Quality Engineering"],
+    "INE 491 - Senior Design II": ["INE 490 - Senior Design I"]
 }
 
-# --- PART 2: THE LOGIC (The "Engine") ---
+# --- PART 2: THE LOGIC (Critical Path Engine) ---
 def calculate_critical_path(passed_courses):
-    # 1. Create the Network Graph
     G = nx.DiGraph()
-    
-    # 2. Add all connections (Prerequisites -> Course)
     for course, prereqs in curriculum.items():
         G.add_node(course)
         for p in prereqs:
             G.add_edge(p, course)
 
-    # 3. Handle Passed Courses
-    # We remove passed courses to see only the "Remaining Work"
     remaining_graph = G.copy()
     for course in passed_courses:
         if course in remaining_graph:
             remaining_graph.remove_node(course)
 
-    # 4. Calculate Critical Path (Longest Path in DAG)
     try:
         if len(remaining_graph.nodes) == 0:
             return 0, [], remaining_graph
-        
         critical_path = nx.dag_longest_path(remaining_graph)
         semesters_needed = len(critical_path)
     except nx.NetworkXError:
-        # Falls here if there is a cycle (logic error in data) or empty graph
         return 0, [], remaining_graph
 
     return semesters_needed, critical_path, remaining_graph
 
-# --- PART 3: THE VISUALIZATION ---
-def draw_graph(G, critical_path):
-    # This creates a visual flowchart using Graphviz language
-    dot = nx.nx_pydot.to_pydot(G)
-    
-    # Style the graph
-    dot.set_rankdir("LR") # Left to Right flow
-    
-    # Color the Critical Path nodes RED, others BLUE
-    for node in G.nodes():
-        n = dot.get_node(node)
-        if node in critical_path:
-            # Highlight Critical Path
-            if isinstance(n, list): n = n[0] # Safety check
-            n.set_style("filled")
-            n.set_fillcolor("#ffcccc") # Light Red
-            n.set_color("red")
-            n.set_penwidth("2.0")
-        else:
-            # Standard Course
-            if isinstance(n, list): n = n[0]
-            n.set_style("filled")
-            n.set_fillcolor("#e6f3ff") # Light Blue
-            n.set_color("blue")
-
-    return dot.to_string()
-
-# --- PART 4: THE WEBSITE UI ---
-st.title("🎓 Graduation Critical-Path Engine")
-st.markdown("""
-**An Industrial Engineering approach to Academic Advising.**
-This tool uses *CPM (Critical Path Method)* to calculate the minimum semesters remaining based on prerequisite chains.
-""")
+# --- PART 3: THE UI ---
+st.title("🎓 INE Flow Optimizer")
+st.markdown("**Welcome to your chill academic advisor.** Select what you've done, and we'll calculate your path.")
 
 # Sidebar
-st.sidebar.header("Student Audit")
+st.sidebar.header("Your Transcript")
 all_courses = list(curriculum.keys())
-passed_selection = st.sidebar.multiselect(
-    "Select courses you have PASSED:",
-    options=all_courses
-)
+passed_selection = st.sidebar.multiselect("Select courses you passed:", options=all_courses)
 
-if st.button("Calculate Graduation Path"):
+if st.button("Calculate Path", type="primary"):
     semesters, path, graph = calculate_critical_path(passed_selection)
 
     if semesters == 0:
-        st.success("🎉 You have cleared the critical path! You are ready to graduate.")
+        st.balloons()
+        st.success("You are free! Graduation is here.")
     else:
-        # 1. Metric Display
-        col1, col2 = st.columns(2)
-        col1.metric("Min. Semesters Left", f"{semesters}")
-        col1.caption("Based on prerequisite depth")
-        
-        col2.metric("Bottleneck Course", path[0])
-        col2.caption("You must take this next!")
+        # Dashboard Layout
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Semesters Left (Min)", semesters)
+        c2.metric("Remaining Courses", len(graph.nodes))
+        c3.metric("Critical Bottleneck", path[0].split("-")[0]) # Shows just code (e.g., INE 331)
 
-        # 2. The List
-        st.subheader("Your Critical Path (The 'Red' Chain)")
-        st.write("If you fail any course in this chain, your graduation is delayed:")
-        st.error(" ➡️ ".join(path))
-
-        # 3. The Visual Diagram
-        st.subheader("Visual Network Diagram")
-        st.caption("Red = Critical Path (Zero Slack) | Blue = Flexible Courses")
+        st.markdown("### 🚦 The Critical Path")
+        st.caption("You cannot drop these courses without delaying graduation.")
         
-        # We need to catch error if graph is empty
-        if len(graph.nodes) > 0:
-            try:
-                # Simple DOT graph generation manually to avoid heavy pydot dependency issues on cloud
-                graph_code = 'digraph G { rankdir="LR"; node [style=filled, shape=box]; '
-                for node in graph.nodes():
-                    color = "lightpink" if node in path else "lightblue"
-                    border = "red" if node in path else "blue"
-                    graph_code += f'"{node}" [fillcolor="{color}", color="{border}"]; '
+        # Display list nicely
+        for i, course in enumerate(path):
+            st.info(f"**Step {i+1}:** {course}")
+
+        # Visualization
+        st.markdown("### 🕸️ Visual Map")
+        try:
+            # Customizing the graph look to match the "Chill" theme
+            dot_code = 'digraph G { rankdir="LR"; bgcolor="transparent"; node [style="filled", shape="box", fontname="Quicksand", penwidth="0"]; edge [penwidth="2"]; '
+            
+            for node in graph.nodes():
+                # Critical Path = Soft Red/Pink, Others = Soft Blue/White
+                if node in path:
+                    color = "#ffadad" # Pastel Red
+                    font = "black"
+                else:
+                    color = "#e0f7fa" # Pastel Blue
+                    font = "#555"
                 
-                for u, v in graph.edges():
-                    style = "bold" if (u in path and v in path) else "solid"
-                    color = "red" if (u in path and v in path) else "gray"
-                    graph_code += f'"{u}" -> "{v}" [color="{color}", style="{style}"]; '
-                
-                graph_code += "}"
-                st.graphviz_chart(graph_code)
-                
-            except Exception as e:
-                st.warning("Could not render visual graph.")
+                # Cleanup names for the graph (too long names break the visual)
+                short_name = node.split("-")[0] 
+                dot_code += f'"{node}" [label="{short_name}", fillcolor="{color}", fontcolor="{font}"]; '
+            
+            for u, v in graph.edges():
+                if u in path and v in path:
+                    color = "#ff6b6b" # Darker red for critical arrows
+                else:
+                    color = "#b0bec5" # Grey for others
+                dot_code += f'"{u}" -> "{v}" [color="{color}"]; '
+            
+            dot_code += "}"
+            st.graphviz_chart(dot_code)
+            
+        except Exception:
+            st.warning("Visual map requires data.")
