@@ -1,22 +1,16 @@
 import streamlit as st
 import networkx as nx
 
-# --- CONFIGURATION & STYLE ---
-st.set_page_config(page_title="INE Course Map", page_icon="🧘", layout="wide")
+st.set_page_config(page_title="INE Course Map", layout="wide")
 
-# 1. THE "CHILL" STYLING (CSS)
-# We inject custom CSS to change the font and add the animated background.
 st.markdown("""
 <style>
-    /* Import a chill Google Font */
     @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600&display=swap');
 
-    /* Apply the font to the whole app */
     html, body, [class*="css"] {
         font-family: 'Quicksand', sans-serif;
     }
 
-    /* Animated Background Gradient */
     .stApp {
         background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
         background-size: 400% 400%;
@@ -29,15 +23,13 @@ st.markdown("""
         100% { background-position: 0% 50%; }
     }
 
-    /* Make the content boxes semi-transparent white for readability */
     .stMetric, .stMarkdown, .stInfo, .stSuccess, .stError, .stWarning {
         background-color: rgba(255, 255, 255, 0.85);
         padding: 15px;
         border-radius: 15px;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
-    
-    /* Style the sidebar to be glass-morphism */
+
     section[data-testid="stSidebar"] {
         background-color: rgba(255, 255, 255, 0.9);
     }
@@ -60,10 +52,10 @@ curriculum = {
     "WRI 102 - Academic Writing II": ["WRI 101 - Academic Writing I"],
 
     # --- Year 2 ---
-    "MTH 205 - Calculus III": ["MTH 104 - Calculus II"],
+    "MTH 203 - Calculus III": ["MTH 104 - Calculus II"],
     "MTH 225 - Diff Eq & Linear Alg": ["MTH 104 - Calculus II"],
     "NGN 112 - AI & Data Science": ["CMP 120 - Programming"],
-    "MCE 250 - Materials Science": ["CHM 101 - Chemistry"],
+    "MCE 230 - Materials Science": ["CHM 101 - Chemistry"],
     
     "NGN 211 - Eng Probability & Stats": ["MTH 104 - Calculus II"],
     "INE 222 - Operations Research I": ["MTH 225 - Diff Eq & Linear Alg"],
@@ -72,18 +64,18 @@ curriculum = {
     # --- Year 3 ---
     "INE 322 - Operations Research II": ["INE 222 - Operations Research I"],
     "INE 323 - Stochastic Processes": ["NGN 211 - Eng Probability & Stats"],
-    "INE 351 - Quality Engineering": ["NGN 211 - Eng Probability & Stats"],
+    "INE 311 - Quality Engineering": ["NGN 211 - Eng Probability & Stats"],
     "INE 310 - Data Mgmt for IE": ["CMP 120 - Programming"],
     
     "INE 331 - Analysis of Prod Systems": ["INE 222 - Operations Research I"],
     "INE 332 - Supply Chain Analysis": ["INE 331 - Analysis of Prod Systems"],
-    "INE 302 - Mfg Processes": ["MCE 250 - Materials Science"],
+    "INE 302 - Mfg Processes": ["MCE 230 - Materials Science"],
 
     # --- Year 4 ---
     "INE 418 - Decision Science": ["INE 222 - Operations Research I"],
     "INE 439 - Fundamentals of Mfg": ["INE 302 - Mfg Processes"],
     "INE 465 - Service Systems": ["INE 323 - Stochastic Processes"],
-    "INE 490 - Senior Design I": ["INE 331 - Analysis of Prod Systems", "INE 351 - Quality Engineering"],
+    "INE 490 - Senior Design I": ["INE 331 - Analysis of Prod Systems", "INE 311 - Quality Engineering"],
     "INE 491 - Senior Design II": ["INE 490 - Senior Design I"]
 }
 
@@ -170,3 +162,4 @@ if st.button("Calculate Path", type="primary"):
             
         except Exception:
             st.warning("Visual map requires data.")
+
